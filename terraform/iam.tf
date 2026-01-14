@@ -57,13 +57,14 @@ resource "aws_iam_role_policy" "lambda_agentcore" {
       {
         # AgentCore Runtimeの呼び出し権限
         # NOTE: サービスプレフィックスは bedrock-agentcore（bedrock-agentcore-runtime ではない）
+        # NOTE: /runtime-endpoint/DEFAULT などのサブリソースも許可するためワイルドカード使用
         Sid    = "InvokeAgentCoreRuntime"
         Effect = "Allow"
         Action = [
           "bedrock-agentcore:InvokeAgentRuntime"
         ]
-        # 特定のランタイムのみに制限
-        Resource = aws_bedrockagentcore_agent_runtime.summarizer.agent_runtime_arn
+        # 特定のランタイムとそのサブリソースに制限
+        Resource = "${aws_bedrockagentcore_agent_runtime.summarizer.agent_runtime_arn}/*"
       }
     ]
   })
