@@ -145,3 +145,22 @@ variable "subnet_ids" {
   type        = list(string)
   default     = []
 }
+
+# -----------------------------------------------------------------------------
+# ログ設定
+# -----------------------------------------------------------------------------
+
+variable "log_retention_days" {
+  description = "CloudWatch Logs の保持期間（日数）"
+  type        = number
+  default     = 30
+
+  validation {
+    # CloudWatch Logs で許可される保持期間の値
+    condition = contains([
+      0, 1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731,
+      1096, 1827, 2192, 2557, 2922, 3288, 3653
+    ], var.log_retention_days)
+    error_message = "log_retention_days は CloudWatch Logs で許可された値である必要があります"
+  }
+}

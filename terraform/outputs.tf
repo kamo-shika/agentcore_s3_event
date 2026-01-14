@@ -111,6 +111,20 @@ output "agentcore_memory_strategy_id" {
 }
 
 # -----------------------------------------------------------------------------
+# AgentCore Runtime ログ
+# -----------------------------------------------------------------------------
+
+output "agentcore_log_group_name" {
+  description = "AgentCore Runtime ログの CloudWatch Log Group 名"
+  value       = aws_cloudwatch_log_group.agentcore_runtime.name
+}
+
+output "agentcore_log_group_arn" {
+  description = "AgentCore Runtime ログの CloudWatch Log Group ARN"
+  value       = aws_cloudwatch_log_group.agentcore_runtime.arn
+}
+
+# -----------------------------------------------------------------------------
 # IAMロール
 # -----------------------------------------------------------------------------
 

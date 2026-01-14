@@ -62,7 +62,6 @@ resource "aws_iam_role_policy" "lambda_agentcore" {
         Action = [
           "bedrock-agentcore:InvokeAgentRuntime"
         ]
-        # ベースARNとサブリソース（runtime-endpoint等）の両方を許可
         Resource = "*"
       }
     ]
@@ -258,12 +257,7 @@ resource "aws_iam_role_policy" "agentcore_logs" {
           "logs:DescribeLogGroups",
           "logs:DescribeLogStreams"
         ]
-        Resource = [
-          # ロググループへの権限
-          "arn:aws:logs:${local.region}:${local.account_id}:log-group:/aws/bedrock-agentcore/*",
-          # ログストリームへの権限（PutLogEventsに必要）
-          "arn:aws:logs:${local.region}:${local.account_id}:log-group:/aws/bedrock-agentcore/*:log-stream:*"
-        ]
+        Resource = "*"
       }
     ]
   })
