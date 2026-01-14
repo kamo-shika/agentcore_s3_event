@@ -225,15 +225,3 @@ uv run ruff check .
 # フォーマッター
 uv run ruff format .
 ```
-
-### コーディング規約
-
-`CLAUDE.md` を参照してください。主なポイント:
-
-- コメント・docstringは日本語
-- 変数名・関数名は英語（スネークケース）
-- すべての関数に型ヒントを付ける
-
-## ライセンス
-
-MIT License
