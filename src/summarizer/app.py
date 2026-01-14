@@ -32,15 +32,16 @@ from .agent import process_document
 # -----------------------------------------------------------------------------
 # ロガーの設定
 # -----------------------------------------------------------------------------
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-# コンソールハンドラーを追加（CloudWatch Logsに出力）
-handler = logging.StreamHandler()
-handler.setFormatter(
-    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+# ルートロガーを設定して全てのログを確実に出力
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()],
+    force=True,  # 既存の設定を上書き
 )
-logger.addHandler(handler)
+
+# このモジュール用のロガー
+logger = logging.getLogger(__name__)
 
 # -----------------------------------------------------------------------------
 # 環境変数から設定を読み込み
@@ -54,7 +55,14 @@ S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME", "")
 # -----------------------------------------------------------------------------
 # AgentCore Runtimeアプリケーションの初期化
 # -----------------------------------------------------------------------------
+logger.info("=" * 60)
+logger.info("AgentCore Runtime アプリケーション初期化開始")
+logger.info(f"AGENTCORE_MEMORY_ID: {AGENTCORE_MEMORY_ID or '(未設定)'}")
+logger.info(f"S3_BUCKET_NAME: {S3_BUCKET_NAME or '(未設定)'}")
+logger.info("=" * 60)
+
 app = BedrockAgentCoreApp()
+logger.info("BedrockAgentCoreApp 初期化完了")
 
 
 def _run_background_process(
