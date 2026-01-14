@@ -1,0 +1,108 @@
+# =============================================================================
+# S3イベント駆動 Strands Agents ドキュメント要約プロジェクト
+# =============================================================================
+# 概要:
+#   S3にテキストファイルがアップロードされたら、AgentCore Runtimeで
+#   Strands Agentsが自動的に要約を生成し、AgentCoreMemoryに長期記憶として保存する
+# =============================================================================
+
+[project]
+name = "strands-doc-summarizer"
+version = "0.1.0"
+description = "S3イベント駆動のドキュメント要約エージェント"
+readme = "README.md"
+requires-python = ">=3.12"
+
+# -----------------------------------------------------------------------------
+# 依存関係
+# -----------------------------------------------------------------------------
+dependencies = [
+    # Strands Agents: AIエージェントフレームワーク
+    "strands-agents>=0.1.0",
+    # Strands Tools: エージェント用ツール群
+    "strands-agents-tools>=0.1.0",
+    # Bedrock AgentCore: AgentCore Runtimeのベース
+    "bedrock-agentcore>=0.1.0",
+    # Bedrock AgentCore Memory: 長期記憶機能
+    "bedrock-agentcore-memory>=0.1.0",
+    # AWS SDK: S3などのAWSサービスアクセス
+    "boto3>=1.34.0",
+]
+
+# -----------------------------------------------------------------------------
+# 開発用依存関係
+# -----------------------------------------------------------------------------
+[project.optional-dependencies]
+dev = [
+    # テストフレームワーク
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.23.0",
+    # AWSモック
+    "moto>=5.0.0",
+    # リンター・フォーマッター
+    "ruff>=0.1.0",
+    # 型チェック
+    "mypy>=1.8.0",
+    "boto3-stubs[s3]>=1.34.0",
+]
+
+# -----------------------------------------------------------------------------
+# ビルド設定
+# -----------------------------------------------------------------------------
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+# src/summarizer をパッケージとしてビルド
+packages = ["src/summarizer"]
+
+# -----------------------------------------------------------------------------
+# Ruff設定（リンター・フォーマッター）
+# -----------------------------------------------------------------------------
+[tool.ruff]
+# 行の最大長
+line-length = 100
+# 対象Pythonバージョン
+target-version = "py312"
+
+[tool.ruff.lint]
+# 有効なルール
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "UP",   # pyupgrade
+]
+# 無視するルール
+ignore = [
+    "E501",  # 行の長さ（フォーマッターに任せる）
+]
+
+[tool.ruff.lint.isort]
+# インポートのソート設定
+known-first-party = ["summarizer"]
+
+# -----------------------------------------------------------------------------
+# Mypy設定（型チェック）
+# -----------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+
+# -----------------------------------------------------------------------------
+# Pytest設定
+# -----------------------------------------------------------------------------
+[tool.pytest.ini_options]
+# テストファイルのパターン
+testpaths = ["tests"]
+# 詳細な出力
+addopts = "-v --tb=short"
+# 非同期テストモード
+asyncio_mode = "auto"
