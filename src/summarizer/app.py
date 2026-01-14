@@ -1,21 +1,28 @@
 # =============================================================================
-# AgentCore Runtime エントリポイント
+# AgentCore Runtime エントリポイント（非同期実行版）
 # =============================================================================
 # 概要:
 #   BedrockAgentCoreAppを使用してAgentCore Runtimeのエントリポイントを定義
-#   S3イベントからのペイロードを受け取り、ドキュメント要約処理を実行
+#   S3イベントからのペイロードを受け取り、非同期でドキュメント要約処理を実行
 #
 # 処理フロー:
 #   1. プロキシLambdaからHTTPリクエストを受信
 #   2. ペイロードからS3バケット名とキーを取得
-#   3. エージェントによる要約処理を実行
-#   4. 結果をレスポンスとして返却
+#   3. 即座にACKレスポンスを返却
+#   4. バックグラウンドでエージェントによる要約処理を実行
+#   5. 処理完了後、S3に結果を保存
+#
+# 非同期実行の利点:
+#   - Lambdaのタイムアウト（30秒）を超える長時間処理に対応
+#   - 最大8時間の処理時間をサポート
+#   - セッション再利用でコールドスタート削減
 # =============================================================================
 
 from __future__ import annotations
 
 import logging
 import os
+import threading
 from typing import Any
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
@@ -50,13 +57,61 @@ S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME", "")
 app = BedrockAgentCoreApp()
 
 
+def _run_background_process(
+    task_id: str,
+    bucket: str,
+    key: str,
+    actor_id: str,
+    memory_id: str,
+) -> None:
+    """
+    バックグラウンドでドキュメント処理を実行する。
+
+    処理完了後、非同期タスクを完了としてマークする。
+    この関数はスレッドで実行されるため、メインスレッドをブロックしない。
+
+    Args:
+        task_id: 非同期タスクのID
+        bucket: S3バケット名
+        key: S3オブジェクトキー
+        actor_id: ユーザーID
+        memory_id: AgentCoreMemoryのID
+    """
+    logger.info(f"バックグラウンド処理開始: task_id={task_id}, key={key}")
+
+    try:
+        # ドキュメント要約処理を実行
+        result = process_document(
+            bucket=bucket,
+            key=key,
+            actor_id=actor_id,
+            memory_id=memory_id,
+        )
+
+        if result.get("success"):
+            logger.info(f"バックグラウンド処理完了: task_id={task_id}, result={result}")
+        else:
+            logger.error(f"バックグラウンド処理失敗: task_id={task_id}, result={result}")
+
+    except Exception as e:
+        logger.exception(f"バックグラウンド処理中に予期しないエラー: task_id={task_id}, error={e}")
+
+    finally:
+        # 非同期タスクを完了としてマーク
+        # これにより、Pingステータスが HealthyBusy から Healthy に戻る
+        app.complete_async_task(task_id)
+        logger.info(f"非同期タスク完了マーク: task_id={task_id}")
+
+
 @app.entrypoint
 def invoke(payload: dict[str, Any]) -> dict[str, Any]:
     """
-    AgentCore Runtimeのエントリポイント。
+    AgentCore Runtimeのエントリポイント（非同期版）。
 
     プロキシLambdaから送信されたペイロードを受け取り、
-    ドキュメント要約処理を実行する。
+    即座にACKレスポンスを返却した後、バックグラウンドでドキュメント要約処理を実行する。
+
+    この非同期実行により、Lambdaのタイムアウトを超える長時間処理にも対応可能。
 
     Args:
         payload: リクエストペイロード
@@ -64,10 +119,10 @@ def invoke(payload: dict[str, Any]) -> dict[str, Any]:
             - key: S3オブジェクトキー（例: "alice/uploads/report.txt"）
 
     Returns:
-        処理結果を含む辞書
-            - success: 処理が成功したかどうか
-            - summary_key: 保存された要約のS3キー
-            - message: 処理結果メッセージ
+        処理受付結果を含む辞書
+            - status: "accepted"（受付成功）または "error"（バリデーションエラー）
+            - task_id: 非同期タスクのID（受付成功時）
+            - message: 結果メッセージ
 
     Example:
         >>> payload = {
@@ -77,9 +132,9 @@ def invoke(payload: dict[str, Any]) -> dict[str, Any]:
         >>> result = invoke(payload)
         >>> print(result)
         {
-            "success": True,
-            "summary_key": "alice/summaries/report.summary.txt",
-            "message": "要約を正常に生成しました"
+            "status": "accepted",
+            "task_id": "abc123-def456",
+            "message": "処理をバックグラウンドで開始しました"
         }
     """
     logger.info(f"リクエスト受信: {payload}")
@@ -92,12 +147,12 @@ def invoke(payload: dict[str, Any]) -> dict[str, Any]:
     if not bucket:
         error_msg = "バケット名が指定されていません"
         logger.error(error_msg)
-        return {"success": False, "message": error_msg}
+        return {"status": "error", "message": error_msg}
 
     if not key:
         error_msg = "オブジェクトキーが指定されていません"
         logger.error(error_msg)
-        return {"success": False, "message": error_msg}
+        return {"status": "error", "message": error_msg}
 
     # S3キーからActor ID（ユーザーID）を抽出
     # キー構造: {user_id}/uploads/{filename}
@@ -105,44 +160,37 @@ def invoke(payload: dict[str, Any]) -> dict[str, Any]:
     if len(path_parts) < 3:
         error_msg = f"無効なS3キー形式です: {key}（期待: {{user_id}}/uploads/{{filename}}）"
         logger.error(error_msg)
-        return {"success": False, "message": error_msg}
+        return {"status": "error", "message": error_msg}
 
     actor_id = path_parts[0]
     filename = path_parts[-1]
 
-    logger.info(f"処理開始: actor_id={actor_id}, filename={filename}")
+    logger.info(f"処理受付: actor_id={actor_id}, filename={filename}")
 
-    try:
-        # ドキュメント要約処理を実行
-        result = process_document(
-            bucket=bucket,
-            key=key,
-            actor_id=actor_id,
-            memory_id=AGENTCORE_MEMORY_ID,
-        )
+    # 非同期タスクを登録
+    # add_async_task() により、Pingステータスが HealthyBusy になる
+    task_id = app.add_async_task(
+        "document_processing",
+        {"bucket": bucket, "key": key, "actor_id": actor_id},
+    )
+    logger.info(f"非同期タスク登録: task_id={task_id}")
 
-        logger.info(f"処理完了: {result}")
-        return result
+    # バックグラウンドスレッドで処理を実行
+    # daemon=True により、メインプロセス終了時にスレッドも終了する
+    thread = threading.Thread(
+        target=_run_background_process,
+        args=(task_id, bucket, key, actor_id, AGENTCORE_MEMORY_ID),
+        daemon=True,
+    )
+    thread.start()
 
-    except Exception as e:
-        # エラーハンドリング
-        error_msg = f"要約処理中にエラーが発生しました: {e}"
-        logger.exception(error_msg)
-        return {"success": False, "message": error_msg}
-
-
-# -----------------------------------------------------------------------------
-# ヘルスチェックエンドポイント（オプション）
-# -----------------------------------------------------------------------------
-@app.route("/ping")
-def health_check() -> dict[str, str]:
-    """
-    ヘルスチェック用エンドポイント。
-
-    Returns:
-        ステータスを含む辞書
-    """
-    return {"status": "healthy"}
+    # 即座にACKレスポンスを返却
+    # 処理はバックグラウンドで継続される
+    return {
+        "status": "accepted",
+        "task_id": task_id,
+        "message": "処理をバックグラウンドで開始しました",
+    }
 
 
 # -----------------------------------------------------------------------------

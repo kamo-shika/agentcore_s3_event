@@ -1,19 +1,25 @@
 # =============================================================================
-# プロキシLambda ハンドラー
+# プロキシLambda ハンドラー（非同期実行対応版）
 # =============================================================================
 # 概要:
-#   S3イベント通知を受け取り、AgentCore Runtimeにリクエストを転送する
+#   S3イベント通知を受け取り、AgentCore Runtimeに非同期処理をリクエストする
 #   薄いプロキシレイヤーとして機能
 #
 # 処理フロー:
 #   1. S3イベント通知を受信
 #   2. イベントからバケット名とオブジェクトキーを抽出
 #   3. ファイル拡張子をチェック（.txt, .md のみ処理）
-#   4. AgentCore RuntimeにHTTPリクエストを送信
-#   5. レスポンスを返却
+#   4. AgentCore Runtimeに非同期処理をリクエスト（即座にACKを受信）
+#   5. 処理受付結果をレスポンスとして返却
+#
+# 非同期実行の利点:
+#   - Lambdaのタイムアウト（30秒）を超える長時間処理に対応
+#   - 即座にレスポンスを受け取り、Lambdaを短時間で終了
+#   - 実際の処理はAgentCore Runtimeでバックグラウンド実行
 #
 # 環境変数:
 #   - AGENTCORE_RUNTIME_ENDPOINT: AgentCore RuntimeのエンドポイントURL
+#   - AGENTCORE_RUNTIME_ID: AgentCore RuntimeのID
 # =============================================================================
 
 from __future__ import annotations
@@ -59,7 +65,8 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """
     Lambda関数のエントリポイント。
 
-    S3イベント通知を受け取り、AgentCore Runtimeに処理を委譲する。
+    S3イベント通知を受け取り、AgentCore Runtimeに非同期処理をリクエストする。
+    AgentCore Runtimeは即座にACKを返し、処理はバックグラウンドで実行される。
 
     Args:
         event: S3イベント通知
@@ -76,22 +83,22 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         context: Lambda実行コンテキスト
 
     Returns:
-        処理結果
+        処理受付結果
             {
                 "statusCode": 200,
                 "body": {
-                    "processed": [...],
-                    "skipped": [...],
-                    "errors": [...]
+                    "accepted": [...],  # 処理を受け付けたファイル
+                    "skipped": [...],   # スキップされたファイル
+                    "errors": [...]     # エラーが発生したファイル
                 }
             }
     """
     logger.info(f"イベント受信: {json.dumps(event, ensure_ascii=False)}")
 
     # 処理結果を格納するリスト
-    processed = []  # 正常に処理されたファイル
-    skipped = []    # スキップされたファイル
-    errors = []     # エラーが発生したファイル
+    accepted = []  # 処理を受け付けたファイル（非同期実行中）
+    skipped = []   # スキップされたファイル
+    errors = []    # エラーが発生したファイル
 
     # S3イベントのレコードを処理
     records = event.get("Records", [])
@@ -102,7 +109,7 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             "statusCode": 200,
             "body": json.dumps({
                 "message": "処理対象のレコードがありません",
-                "processed": [],
+                "accepted": [],
                 "skipped": [],
                 "errors": [],
             }, ensure_ascii=False),
@@ -144,14 +151,15 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 skipped.append({"bucket": bucket, "key": key, "reason": skip_msg})
                 continue
 
-            # AgentCore Runtimeに処理を依頼
+            # AgentCore Runtimeに非同期処理をリクエスト
             result = invoke_agentcore_runtime(bucket, key)
 
-            if result.get("success"):
-                processed.append({
+            if result.get("accepted"):
+                accepted.append({
                     "bucket": bucket,
                     "key": key,
-                    "summary_key": result.get("summary_key"),
+                    "task_id": result.get("task_id"),
+                    "message": result.get("message"),
                 })
             else:
                 errors.append({
@@ -171,14 +179,14 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
     # 処理結果のサマリーをログ出力
     logger.info(
-        f"処理完了: processed={len(processed)}, "
+        f"処理完了: accepted={len(accepted)}, "
         f"skipped={len(skipped)}, errors={len(errors)}"
     )
 
     return {
         "statusCode": 200 if not errors else 207,  # 207 = Multi-Status
         "body": json.dumps({
-            "processed": processed,
+            "accepted": accepted,
             "skipped": skipped,
             "errors": errors,
         }, ensure_ascii=False),
@@ -210,16 +218,19 @@ def get_file_extension(key: str) -> str:
 
 def invoke_agentcore_runtime(bucket: str, key: str) -> dict[str, Any]:
     """
-    AgentCore Runtimeにリクエストを送信する。
+    AgentCore Runtimeに非同期処理をリクエストする。
+
+    AgentCore Runtimeは即座にACKを返し、処理はバックグラウンドで実行される。
+    処理結果はS3に直接保存される。
 
     Args:
         bucket: S3バケット名
         key: S3オブジェクトキー
 
     Returns:
-        AgentCore Runtimeからのレスポンス
-            - success: 処理成功フラグ
-            - summary_key: 要約の保存先キー（成功時）
+        処理受付結果
+            - accepted: 処理が受け付けられたかどうか
+            - task_id: 非同期タスクのID（受付成功時）
             - message: 結果メッセージ
     """
     logger.info(f"AgentCore Runtime呼び出し: runtime_id={AGENTCORE_RUNTIME_ID}")
@@ -248,7 +259,20 @@ def invoke_agentcore_runtime(bucket: str, key: str) -> dict[str, Any]:
             result = response_body
 
         logger.info(f"AgentCore Runtimeレスポンス: {result}")
-        return result
+
+        # 非同期実行の場合、status: "accepted" で成功
+        if result.get("status") == "accepted":
+            return {
+                "accepted": True,
+                "task_id": result.get("task_id"),
+                "message": result.get("message", "処理を受け付けました"),
+            }
+
+        # エラーレスポンスの場合
+        return {
+            "accepted": False,
+            "message": result.get("message", "処理の受付に失敗しました"),
+        }
 
     except ClientError as e:
         # AWSサービスエラー
@@ -256,7 +280,7 @@ def invoke_agentcore_runtime(bucket: str, key: str) -> dict[str, Any]:
         error_msg = f"AgentCore Runtime呼び出しエラー（{error_code}）: {e}"
         logger.error(error_msg)
         return {
-            "success": False,
+            "accepted": False,
             "message": error_msg,
         }
 
@@ -265,6 +289,6 @@ def invoke_agentcore_runtime(bucket: str, key: str) -> dict[str, Any]:
         error_msg = f"AgentCore Runtime呼び出し中に予期しないエラー: {e}"
         logger.exception(error_msg)
         return {
-            "success": False,
+            "accepted": False,
             "message": error_msg,
         }

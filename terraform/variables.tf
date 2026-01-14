@@ -59,9 +59,11 @@ variable "memory_event_expiry_days" {
 # -----------------------------------------------------------------------------
 
 variable "lambda_timeout" {
-  description = "プロキシLambdaのタイムアウト（秒）"
+  # 非同期実行では AgentCore Runtime が即座に ACK を返すため、
+  # 長いタイムアウトは不要。10秒で十分。
+  description = "プロキシLambdaのタイムアウト（秒）※非同期実行のため短時間で完了"
   type        = number
-  default     = 30
+  default     = 10
 
   validation {
     condition     = var.lambda_timeout >= 1 && var.lambda_timeout <= 900
