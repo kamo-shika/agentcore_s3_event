@@ -56,10 +56,11 @@ resource "aws_iam_role_policy" "lambda_agentcore" {
     Statement = [
       {
         # AgentCore Runtimeの呼び出し権限
+        # NOTE: サービスプレフィックスは bedrock-agentcore（bedrock-agentcore-runtime ではない）
         Sid    = "InvokeAgentCoreRuntime"
         Effect = "Allow"
         Action = [
-          "bedrock-agentcore-runtime:InvokeAgent"
+          "bedrock-agentcore:InvokeAgentRuntime"
         ]
         # 特定のランタイムのみに制限
         Resource = aws_bedrockagentcore_agent_runtime.summarizer.agent_runtime_arn
@@ -161,6 +162,9 @@ resource "aws_iam_role_policy" "agentcore_bedrock" {
 # -----------------------------------------------------------------------------
 # AgentCoreMemoryアクセスポリシー
 # -----------------------------------------------------------------------------
+# NOTE: アクション名は AWS Service Authorization Reference に基づく
+# https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonbedrockagentcore.html
+# -----------------------------------------------------------------------------
 resource "aws_iam_role_policy" "agentcore_memory" {
   name = "${local.name_prefix}-agentcore-memory-policy"
   role = aws_iam_role.agentcore_runtime.id
@@ -173,11 +177,21 @@ resource "aws_iam_role_policy" "agentcore_memory" {
         Sid    = "AgentCoreMemory"
         Effect = "Allow"
         Action = [
+          # Memory情報取得
           "bedrock-agentcore:GetMemory",
-          "bedrock-agentcore:CreateMemorySession",
-          "bedrock-agentcore:UpdateMemorySession",
-          "bedrock-agentcore:RetrieveMemory",
-          "bedrock-agentcore:StoreMemory"
+          # イベント操作（会話履歴等）
+          "bedrock-agentcore:CreateEvent",
+          "bedrock-agentcore:GetEvent",
+          "bedrock-agentcore:ListEvents",
+          "bedrock-agentcore:DeleteEvent",
+          # メモリレコード操作（事実抽出結果等）
+          "bedrock-agentcore:RetrieveMemoryRecords",
+          "bedrock-agentcore:BatchCreateMemoryRecords",
+          "bedrock-agentcore:GetMemoryRecord",
+          "bedrock-agentcore:ListMemoryRecords",
+          # セッション・アクター管理
+          "bedrock-agentcore:ListSessions",
+          "bedrock-agentcore:ListActors"
         ]
         # Terraformで作成したMemoryリソースのみに制限
         Resource = aws_bedrockagentcore_memory.main.arn
@@ -223,6 +237,9 @@ resource "aws_iam_role_policy" "agentcore_ecr" {
 # -----------------------------------------------------------------------------
 # CloudWatch Logsポリシー
 # -----------------------------------------------------------------------------
+# NOTE: PutLogEventsはログストリームに対して実行されるため、
+#       ログストリームのARNパターンも含める必要がある
+# -----------------------------------------------------------------------------
 resource "aws_iam_role_policy" "agentcore_logs" {
   name = "${local.name_prefix}-agentcore-logs-policy"
   role = aws_iam_role.agentcore_runtime.id
@@ -237,9 +254,16 @@ resource "aws_iam_role_policy" "agentcore_logs" {
         Action = [
           "logs:CreateLogGroup",
           "logs:CreateLogStream",
-          "logs:PutLogEvents"
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams"
         ]
-        Resource = "arn:aws:logs:${local.region}:${local.account_id}:log-group:/aws/bedrock-agentcore/*"
+        Resource = [
+          # ロググループへの権限
+          "arn:aws:logs:${local.region}:${local.account_id}:log-group:/aws/bedrock-agentcore/*",
+          # ログストリームへの権限（PutLogEventsに必要）
+          "arn:aws:logs:${local.region}:${local.account_id}:log-group:/aws/bedrock-agentcore/*:log-stream:*"
+        ]
       }
     ]
   })
