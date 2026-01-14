@@ -21,7 +21,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 6.0"
     }
   }
 
@@ -75,7 +75,8 @@ locals {
   account_id = data.aws_caller_identity.current.account_id
 
   # リージョン名
-  region = data.aws_region.current.name
+  # NOTE: name は deprecated のため id を使用
+  region = data.aws_region.current.id
 
   # リソース名のプレフィックス
   # 例: "strands-doc-summarizer-dev"

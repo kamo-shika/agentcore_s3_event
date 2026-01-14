@@ -62,7 +62,7 @@ resource "aws_iam_role_policy" "lambda_agentcore" {
           "bedrock-agentcore-runtime:InvokeAgent"
         ]
         # 特定のランタイムのみに制限
-        Resource = aws_bedrockagentcore_agent_runtime.summarizer.arn
+        Resource = aws_bedrockagentcore_agent_runtime.summarizer.agent_runtime_arn
       }
     ]
   })
@@ -179,8 +179,8 @@ resource "aws_iam_role_policy" "agentcore_memory" {
           "bedrock-agentcore:RetrieveMemory",
           "bedrock-agentcore:StoreMemory"
         ]
-        # 特定のMemoryリソースのみに制限
-        Resource = "arn:aws:bedrock-agentcore:${local.region}:${local.account_id}:memory/${var.agentcore_memory_id}"
+        # Terraformで作成したMemoryリソースのみに制限
+        Resource = aws_bedrockagentcore_memory.main.arn
       }
     ]
   })
@@ -243,4 +243,46 @@ resource "aws_iam_role_policy" "agentcore_logs" {
       }
     ]
   })
+}
+
+# =============================================================================
+# AgentCore Memory用IAM
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Memory実行ロール
+# -----------------------------------------------------------------------------
+# AgentCoreMemoryがBedrockモデルを呼び出すために必要なロール
+# semanticMemoryStrategyで事実抽出時にモデルを使用する
+# -----------------------------------------------------------------------------
+
+resource "aws_iam_role" "agentcore_memory" {
+  name = "${local.name_prefix}-memory-role"
+
+  # 信頼ポリシー: AgentCoreサービスがこのロールを引き受けることを許可
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "bedrock-agentcore.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name = "${local.name_prefix}-memory-role"
+    # 日本語コメント: AgentCoreMemory用実行ロール
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Memory用Bedrockモデル呼び出しポリシー（AWS管理ポリシー）
+# -----------------------------------------------------------------------------
+resource "aws_iam_role_policy_attachment" "agentcore_memory_bedrock" {
+  role       = aws_iam_role.agentcore_memory.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonBedrockAgentCoreMemoryBedrockModelInferenceExecutionRolePolicy"
 }

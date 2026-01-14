@@ -35,7 +35,7 @@ resource "aws_lambda_function" "proxy" {
   environment {
     variables = {
       # AgentCore RuntimeのID
-      AGENTCORE_RUNTIME_ID = aws_bedrockagentcore_agent_runtime.summarizer.id
+      AGENTCORE_RUNTIME_ID = aws_bedrockagentcore_agent_runtime.summarizer.agent_runtime_id
       # ログレベル
       LOG_LEVEL = var.environment == "prod" ? "INFO" : "DEBUG"
     }
@@ -104,7 +104,8 @@ resource "aws_security_group" "lambda" {
   count = var.vpc_id != "" ? 1 : 0
 
   name        = "${local.name_prefix}-lambda-sg"
-  description = "プロキシLambda用セキュリティグループ"
+  # NOTE: descriptionに日本語は使用不可
+  description = "Security group for proxy Lambda function"
   vpc_id      = var.vpc_id
 
   # アウトバウンド: すべて許可（AgentCore Runtimeへのアクセス）
@@ -113,7 +114,8 @@ resource "aws_security_group" "lambda" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
-    description = "すべてのアウトバウンドトラフィックを許可"
+    # NOTE: descriptionに日本語は使用不可
+    description = "Allow all outbound traffic"
   }
 
   tags = {

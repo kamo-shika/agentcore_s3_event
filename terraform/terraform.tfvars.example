@@ -24,15 +24,14 @@ project_name = "strands-doc-summarizer"
 environment = "dev"
 
 # -----------------------------------------------------------------------------
-# AgentCore設定（必須）
+# AgentCore設定
 # -----------------------------------------------------------------------------
-
-# AgentCoreMemoryのID
-# create_memory.py を実行して取得した値を設定
-agentcore_memory_id = "YOUR_MEMORY_ID_HERE"
 
 # Bedrockモデル（Claude Haiku 4.5）
 bedrock_model_id = "us.anthropic.claude-3-5-haiku-20241022-v1:0"
+
+# AgentCoreMemoryイベントの有効期限（日数: 7〜365）
+memory_event_expiry_days = 30
 
 # -----------------------------------------------------------------------------
 # Lambda設定

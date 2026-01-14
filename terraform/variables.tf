@@ -37,16 +37,21 @@ variable "environment" {
 # AgentCore設定
 # -----------------------------------------------------------------------------
 
-variable "agentcore_memory_id" {
-  description = "AgentCoreMemoryのID（create_memory.pyで作成したもの）"
-  type        = string
-  # デフォルト値なし - 必ず指定が必要
-}
-
 variable "bedrock_model_id" {
   description = "使用するBedrockモデルID（Claude Haiku 4.5）"
   type        = string
   default     = "us.anthropic.claude-3-5-haiku-20241022-v1:0"
+}
+
+variable "memory_event_expiry_days" {
+  description = "AgentCoreMemoryイベントの有効期限（日数）"
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.memory_event_expiry_days >= 7 && var.memory_event_expiry_days <= 365
+    error_message = "有効期限は7〜365日の範囲で指定してください"
+  }
 }
 
 # -----------------------------------------------------------------------------

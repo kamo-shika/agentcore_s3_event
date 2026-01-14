@@ -51,17 +51,7 @@ flowchart LR
 uv sync
 ```
 
-### 2. AgentCoreMemoryの作成
-
-```bash
-# Memory リソースを作成（初回のみ）
-python setup/create_memory.py --region us-east-1
-
-# 出力されたMemory IDをメモ
-# export AGENTCORE_MEMORY_ID=xxx
-```
-
-### 3. Terraform変数の設定
+### 2. Terraform変数の設定
 
 ```bash
 cd terraform
@@ -69,11 +59,11 @@ cd terraform
 # サンプルをコピー
 cp terraform.tfvars.example terraform.tfvars
 
-# Memory IDを設定
+# 必要に応じて設定を変更
 vim terraform.tfvars
 ```
 
-### 4. インフラのデプロイ
+### 3. インフラのデプロイ
 
 ```bash
 cd terraform
@@ -81,14 +71,14 @@ cd terraform
 # 初期化
 terraform init
 
-# プラン確認
+# プラン確認（AgentCoreMemoryも自動作成されます）
 terraform plan
 
 # デプロイ
 terraform apply
 ```
 
-### 5. Dockerイメージのビルド＆プッシュ
+### 4. Dockerイメージのビルド＆プッシュ
 
 ```bash
 # ECRにイメージをプッシュ
@@ -139,9 +129,6 @@ agentcore_s3_event/
 ├── lambda/
 │   └── proxy_handler.py        # S3イベント→AgentCore Runtime転送
 │
-├── setup/
-│   └── create_memory.py        # AgentCoreMemory初期セットアップ
-│
 ├── terraform/                  # インフラ定義
 │   ├── main.tf
 │   ├── variables.tf
@@ -149,6 +136,7 @@ agentcore_s3_event/
 │   ├── lambda.tf
 │   ├── ecr.tf
 │   ├── agentcore_runtime.tf
+│   ├── agentcore_memory.tf     # AgentCoreMemory + Strategy
 │   ├── iam.tf
 │   └── outputs.tf
 │
@@ -213,8 +201,12 @@ alice/uploads/project_report_2024_02.txt  → 過去の事実を参照して要�
 
 ### AgentCoreMemoryに接続できない
 
-1. Memory IDが正しく設定されているか確認
+1. `terraform output agentcore_memory_id` でMemory IDを確認
 2. IAMロールに`bedrock-agentcore:*`権限があるか確認
+3. Memoryのステータスを確認:
+   ```bash
+   aws bedrock-agentcore get-memory --memory-id $(terraform output -raw agentcore_memory_id)
+   ```
 
 ## 開発
 

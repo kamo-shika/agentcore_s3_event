@@ -83,12 +83,31 @@ output "lambda_log_group" {
 
 output "agentcore_runtime_id" {
   description = "AgentCore RuntimeのID"
-  value       = aws_bedrockagentcore_agent_runtime.summarizer.id
+  value       = aws_bedrockagentcore_agent_runtime.summarizer.agent_runtime_id
 }
 
 output "agentcore_runtime_arn" {
   description = "AgentCore RuntimeのARN"
-  value       = aws_bedrockagentcore_agent_runtime.summarizer.arn
+  value       = aws_bedrockagentcore_agent_runtime.summarizer.agent_runtime_arn
+}
+
+# -----------------------------------------------------------------------------
+# AgentCore Memory
+# -----------------------------------------------------------------------------
+
+output "agentcore_memory_id" {
+  description = "AgentCoreMemoryのID"
+  value       = aws_bedrockagentcore_memory.main.id
+}
+
+output "agentcore_memory_arn" {
+  description = "AgentCoreMemoryのARN"
+  value       = aws_bedrockagentcore_memory.main.arn
+}
+
+output "agentcore_memory_strategy_id" {
+  description = "AgentCoreMemory Strategyの名前"
+  value       = aws_bedrockagentcore_memory_strategy.fact_extractor.name
 }
 
 # -----------------------------------------------------------------------------
@@ -136,7 +155,7 @@ output "usage_guide" {
 output "environment_variables" {
   description = "AgentCore Runtime用の環境変数"
   value = {
-    AGENTCORE_MEMORY_ID = var.agentcore_memory_id
+    AGENTCORE_MEMORY_ID = aws_bedrockagentcore_memory.main.id
     S3_BUCKET_NAME      = aws_s3_bucket.documents.id
     AWS_REGION          = local.region
     BEDROCK_MODEL_ID    = var.bedrock_model_id
