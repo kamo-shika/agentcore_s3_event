@@ -47,8 +47,8 @@ logger.setLevel(logging.INFO)
 # 例: "https://xxx.bedrock-agentcore.us-east-1.amazonaws.com"
 AGENTCORE_RUNTIME_ENDPOINT = os.environ.get("AGENTCORE_RUNTIME_ENDPOINT", "")
 
-# AgentCore RuntimeのランタイムID
-AGENTCORE_RUNTIME_ID = os.environ.get("AGENTCORE_RUNTIME_ID", "")
+# AgentCore RuntimeのARN
+AGENTCORE_RUNTIME_ARN = os.environ.get("AGENTCORE_RUNTIME_ARN", "")
 
 # 対応するファイル拡張子
 SUPPORTED_EXTENSIONS = {".txt", ".md"}
@@ -233,7 +233,7 @@ def invoke_agentcore_runtime(bucket: str, key: str) -> dict[str, Any]:
             - task_id: 非同期タスクのID（受付成功時）
             - message: 結果メッセージ
     """
-    logger.info(f"AgentCore Runtime呼び出し: runtime_id={AGENTCORE_RUNTIME_ID}")
+    logger.info(f"AgentCore Runtime呼び出し: runtime_arn={AGENTCORE_RUNTIME_ARN}")
 
     # リクエストペイロードを作成
     payload = {
@@ -243,11 +243,9 @@ def invoke_agentcore_runtime(bucket: str, key: str) -> dict[str, Any]:
 
     try:
         # AgentCore Runtimeを呼び出し
-        # NOTE: boto3クライアントの正確なAPI仕様はAWSドキュメントを参照
         response = agentcore_client.invoke_agent_runtime(
-            agentRuntimeId=AGENTCORE_RUNTIME_ID,
-            # リクエストボディ
-            inputText=json.dumps(payload),
+            agentRuntimeArn=AGENTCORE_RUNTIME_ARN,
+            payload=json.dumps(payload).encode("utf-8"),
         )
 
         # レスポンスを解析

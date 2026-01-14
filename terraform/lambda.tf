@@ -41,8 +41,8 @@ resource "aws_lambda_function" "proxy" {
   # 環境変数
   environment {
     variables = {
-      # AgentCore RuntimeのID
-      AGENTCORE_RUNTIME_ID = aws_bedrockagentcore_agent_runtime.summarizer.agent_runtime_id
+      # AgentCore RuntimeのARN
+      AGENTCORE_RUNTIME_ARN = aws_bedrockagentcore_agent_runtime.summarizer.agent_runtime_arn
       # ログレベル
       LOG_LEVEL = var.environment == "prod" ? "INFO" : "DEBUG"
     }
