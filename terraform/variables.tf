@@ -13,7 +13,7 @@
 variable "aws_region" {
   description = "AWSリージョン"
   type        = string
-  default     = "us-east-1"
+  default     = "ap-northeast-1"
 }
 
 variable "project_name" {
@@ -40,7 +40,7 @@ variable "environment" {
 variable "bedrock_model_id" {
   description = "使用するBedrockモデルID（Claude Haiku 4.5）"
   type        = string
-  default     = "us.anthropic.claude-3-5-haiku-20241022-v1:0"
+  default     = "jp.anthropic.claude-haiku-4-5-20251001-v1:0"
 }
 
 variable "memory_event_expiry_days" {
