@@ -248,15 +248,28 @@ def invoke_agentcore_runtime(bucket: str, key: str) -> dict[str, Any]:
             payload=json.dumps(payload).encode("utf-8"),
         )
 
-        # レスポンスを解析
-        # NOTE: 実際のレスポンス形式はAgentCore Runtimeの実装に依存
-        response_body = response.get("completion", "{}")
-        if isinstance(response_body, str):
-            result = json.loads(response_body)
-        else:
-            result = response_body
+        # レスポンス構造をログ出力（デバッグ用）
+        logger.info(f"AgentCore Runtimeレスポンスキー: {list(response.keys())}")
 
-        logger.info(f"AgentCore Runtimeレスポンス: {result}")
+        # ストリーミングレスポンスを処理
+        # body はEventStreamで、イベントを順次読み取る必要がある
+        result_chunks = []
+        if "body" in response:
+            for event in response["body"]:
+                logger.info(f"イベント受信: {event}")
+                if "chunk" in event:
+                    chunk_data = event["chunk"].get("bytes", b"")
+                    if chunk_data:
+                        result_chunks.append(chunk_data.decode("utf-8"))
+
+        result_text = "".join(result_chunks)
+        logger.info(f"AgentCore Runtimeレスポンス本文: {result_text[:500] if result_text else '(空)'}")
+
+        # レスポンスをパース
+        try:
+            result = json.loads(result_text) if result_text else {}
+        except json.JSONDecodeError:
+            result = {"message": result_text}
 
         # 非同期実行の場合、status: "accepted" で成功
         if result.get("status") == "accepted":
