@@ -40,7 +40,7 @@ flowchart LR
 - [uv](https://docs.astral.sh/uv/) (Pythonパッケージマネージャー)
 - Docker
 - AWS CLI (設定済み)
-- Terraform 1.5+
+- Terraform 1.5+（AWS Provider v6以上が必要）
 
 ## セットアップ
 
@@ -120,6 +120,13 @@ agentcore_s3_event/
 ├── Dockerfile                  # AgentCore Runtime用
 ├── CLAUDE.md                   # コーディング規約
 │
+├── .claude/                    # Claude Code設定
+│   └── rules/                  # モジュール化されたルール
+│       ├── python.md           # Pythonコード規約
+│       ├── strands.md          # Strands Agent規約
+│       ├── terraform.md        # Terraform規約
+│       └── workflow.md         # ワークフロー規約
+│
 ├── src/summarizer/             # メインアプリケーション
 │   ├── app.py                  # AgentCore Runtimeエントリポイント
 │   ├── agent.py                # Strands Agent定義
@@ -178,10 +185,11 @@ alice/uploads/project_report_2024_02.txt  → 過去の事実を参照して要�
 
 | 変数名 | デフォルト | 説明 |
 |--------|-----------|------|
-| `aws_region` | `us-east-1` | AWSリージョン |
+| `aws_region` | `ap-northeast-1` | AWSリージョン |
 | `project_name` | `strands-doc-summarizer` | プロジェクト名 |
-| `bedrock_model_id` | `us.anthropic.claude-3-5-haiku-20241022-v1:0` | Bedrockモデル |
-| `lambda_timeout` | `30` | Lambdaタイムアウト（秒） |
+| `bedrock_model_id` | `jp.anthropic.claude-haiku-4-5-20251001-v1:0` | Bedrockモデル |
+| `lambda_timeout` | `10` | Lambdaタイムアウト（秒）※非同期実行 |
+| `memory_event_expiry_days` | `30` | AgentCoreMemoryイベント有効期限（日） |
 
 ## トラブルシューティング
 
