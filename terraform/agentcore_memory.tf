@@ -18,8 +18,8 @@
 # -----------------------------------------------------------------------------
 
 resource "aws_bedrockagentcore_memory" "main" {
-  # メモリ名
-  name = "${local.name_prefix}-memory"
+  # メモリ名（AgentCoreはアンダースコア形式のみ許可）
+  name = "${local.agentcore_name_prefix}_memory"
 
   # メモリの説明
   description = "ドキュメント要約エージェント用の長期記憶。事実抽出により過去の情報を保持。"

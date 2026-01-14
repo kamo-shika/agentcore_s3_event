@@ -82,6 +82,11 @@ locals {
   # 例: "strands-doc-summarizer-dev"
   name_prefix = "${var.project_name}-${var.environment}"
 
+  # AgentCore用リソース名プレフィックス（アンダースコア形式）
+  # AgentCoreリソースは ^[a-zA-Z][a-zA-Z0-9_]{0,47}$ の形式のみ許可
+  # 例: "strands_doc_summarizer_dev"
+  agentcore_name_prefix = replace(local.name_prefix, "-", "_")
+
   # 共通タグ（default_tagsに追加するタグがある場合）
   common_tags = {
     Application = "document-summarizer"

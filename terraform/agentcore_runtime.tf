@@ -24,8 +24,8 @@
 
 # AgentCore Runtime リソース（プロバイダーサポート時）
 resource "aws_bedrockagentcore_agent_runtime" "summarizer" {
-  # ランタイム名
-  agent_runtime_name = "${local.name_prefix}-runtime"
+  # ランタイム名（AgentCoreはアンダースコア形式のみ許可）
+  agent_runtime_name = "${local.agentcore_name_prefix}_runtime"
 
   # コンテナ設定
   agent_runtime_artifact {
