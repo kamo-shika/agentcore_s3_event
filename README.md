@@ -4,19 +4,28 @@ S3にテキストファイルがアップロードされたら、AgentCore Runti
 
 ## アーキテクチャ
 
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────────────┐
-│   S3入力    │────▶│   Lambda    │────▶│  AgentCore Runtime  │
-│  バケット   │     │  (プロキシ) │     │  (Strands Agent)    │
-└─────────────┘     └─────────────┘     └─────────────────────┘
-                                                  │
-                                       ┌──────────┼──────────┐
-                                       ▼          ▼          ▼
-                                  ┌────────┐ ┌────────┐ ┌────────┐
-                                  │Bedrock │ │AgentCore│ │  S3   │
-                                  │(Haiku  │ │ Memory │ │(出力) │
-                                  │ 4.5)   │ └────────┘ └────────┘
-                                  └────────┘
+```mermaid
+flowchart LR
+    subgraph Input
+        S3_IN[("S3入力バケット<br/>/uploads/")]
+    end
+
+    subgraph Processing
+        LAMBDA["Lambda<br/>(プロキシ)"]
+        RUNTIME["AgentCore Runtime<br/>(Strands Agent)"]
+    end
+
+    subgraph Services
+        BEDROCK["Bedrock<br/>(Claude Haiku 4.5)"]
+        MEMORY[("AgentCore<br/>Memory")]
+        S3_OUT[("S3出力<br/>/summaries/")]
+    end
+
+    S3_IN -->|"イベント通知"| LAMBDA
+    LAMBDA -->|"HTTP"| RUNTIME
+    RUNTIME --> BEDROCK
+    RUNTIME --> MEMORY
+    RUNTIME --> S3_OUT
 ```
 
 ## 特徴
@@ -119,7 +128,7 @@ aws logs tail /aws/lambda/strands-doc-summarizer-dev-proxy --follow
 agentcore_s3_event/
 ├── pyproject.toml              # uv プロジェクト定義
 ├── Dockerfile                  # AgentCore Runtime用
-├── rules.md                    # コーディング規約
+├── CLAUDE.md                   # コーディング規約
 │
 ├── src/summarizer/             # メインアプリケーション
 │   ├── app.py                  # AgentCore Runtimeエントリポイント
@@ -227,7 +236,7 @@ uv run ruff format .
 
 ### コーディング規約
 
-`rules.md` を参照してください。主なポイント:
+`CLAUDE.md` を参照してください。主なポイント:
 
 - コメント・docstringは日本語
 - 変数名・関数名は英語（スネークケース）
