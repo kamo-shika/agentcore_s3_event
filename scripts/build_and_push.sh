@@ -9,7 +9,7 @@
 #   ./scripts/build_and_push.sh [OPTIONS]
 #
 # オプション:
-#   -r, --region    AWSリージョン（デフォルト: us-east-1）
+#   -r, --region    AWSリージョン（デフォルト: ap-northeast-1）
 #   -t, --tag       イメージタグ（デフォルト: latest）
 #   -n, --no-cache  キャッシュを使用しない
 #   -h, --help      ヘルプを表示
@@ -17,7 +17,7 @@
 # 例:
 #   ./scripts/build_and_push.sh
 #   ./scripts/build_and_push.sh --tag v1.0.0
-#   ./scripts/build_and_push.sh --region ap-northeast-1 --no-cache
+#   ./scripts/build_and_push.sh --region us-east-1 --no-cache
 # =============================================================================
 
 set -e  # エラー時に即座に終了
@@ -29,7 +29,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # デフォルト値
-DEFAULT_REGION="us-east-1"
+DEFAULT_REGION="ap-northeast-1"
 DEFAULT_TAG="latest"
 NO_CACHE=""
 
@@ -51,7 +51,7 @@ AgentCore Runtime用のDockerイメージをビルドし、ECRにプッシュし
 例:
   $0                           # デフォルト設定でビルド＆プッシュ
   $0 --tag v1.0.0              # 特定のタグでビルド
-  $0 --region ap-northeast-1   # 東京リージョンにプッシュ
+  $0 --region us-east-1        # バージニアリージョンにプッシュ
   $0 --no-cache                # キャッシュを使わずにビルド
 EOF
 }

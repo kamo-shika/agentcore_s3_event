@@ -57,8 +57,8 @@ SUPPORTED_EXTENSIONS = {".txt", ".md"}
 # Bedrock AgentCoreクライアントの初期化
 # -----------------------------------------------------------------------------
 # NOTE: Terraformで設定されるIAMロールにより、
-#       bedrock-agentcore-runtime:InvokeAgent 権限が付与される
-agentcore_client = boto3.client("bedrock-agentcore-runtime")
+#       bedrock-agentcore:InvokeAgentRuntime 権限が付与される
+agentcore_client = boto3.client("bedrock-agentcore")
 
 
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
@@ -244,7 +244,7 @@ def invoke_agentcore_runtime(bucket: str, key: str) -> dict[str, Any]:
     try:
         # AgentCore Runtimeを呼び出し
         # NOTE: boto3クライアントの正確なAPI仕様はAWSドキュメントを参照
-        response = agentcore_client.invoke_agent(
+        response = agentcore_client.invoke_agent_runtime(
             agentRuntimeId=AGENTCORE_RUNTIME_ID,
             # リクエストボディ
             inputText=json.dumps(payload),

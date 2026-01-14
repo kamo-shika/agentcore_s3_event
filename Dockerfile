@@ -39,8 +39,9 @@ ENV UV_CACHE_DIR=/tmp/uv-cache
 # 依存関係のインストール
 # - pyproject.toml と uv.lock を先にコピーしてキャッシュを活用
 # - アプリケーションコードの変更時に依存関係の再インストールを回避
+# - README.md はpyproject.tomlのreadmeフィールドで参照されるため必要
 # -----------------------------------------------------------------------------
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock README.md ./
 
 # 依存関係をインストール（本番用のみ、開発用は除外）
 RUN uv sync --frozen --no-cache --no-dev
