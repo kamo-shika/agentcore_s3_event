@@ -242,47 +242,21 @@ def invoke_agentcore_runtime(bucket: str, key: str) -> dict[str, Any]:
     }
 
     try:
-        # AgentCore Runtimeを呼び出し
+        # AgentCore Runtimeを呼び出し（Fire & Forget）
+        # レスポンスはストリーミングだが、リクエスト送信時点で処理開始される
         response = agentcore_client.invoke_agent_runtime(
             agentRuntimeArn=AGENTCORE_RUNTIME_ARN,
             payload=json.dumps(payload).encode("utf-8"),
         )
 
-        # レスポンス構造をログ出力（デバッグ用）
-        logger.info(f"AgentCore Runtimeレスポンスキー: {list(response.keys())}")
+        # レスポンスメタデータをログ出力
+        logger.info(f"AgentCore Runtime呼び出し成功: keys={list(response.keys())}")
 
-        # ストリーミングレスポンスを処理
-        # body はEventStreamで、イベントを順次読み取る必要がある
-        result_chunks = []
-        if "body" in response:
-            for event in response["body"]:
-                logger.info(f"イベント受信: {event}")
-                if "chunk" in event:
-                    chunk_data = event["chunk"].get("bytes", b"")
-                    if chunk_data:
-                        result_chunks.append(chunk_data.decode("utf-8"))
-
-        result_text = "".join(result_chunks)
-        logger.info(f"AgentCore Runtimeレスポンス本文: {result_text[:500] if result_text else '(空)'}")
-
-        # レスポンスをパース
-        try:
-            result = json.loads(result_text) if result_text else {}
-        except json.JSONDecodeError:
-            result = {"message": result_text}
-
-        # 非同期実行の場合、status: "accepted" で成功
-        if result.get("status") == "accepted":
-            return {
-                "accepted": True,
-                "task_id": result.get("task_id"),
-                "message": result.get("message", "処理を受け付けました"),
-            }
-
-        # エラーレスポンスの場合
+        # ストリーミングレスポンスは消費せずに成功とみなす
+        # AgentCore Runtime側でバックグラウンド処理が開始されている
         return {
-            "accepted": False,
-            "message": result.get("message", "処理の受付に失敗しました"),
+            "accepted": True,
+            "message": "AgentCore Runtimeにリクエストを送信しました",
         }
 
     except ClientError as e:
