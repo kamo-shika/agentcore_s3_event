@@ -63,10 +63,7 @@ resource "aws_iam_role_policy" "lambda_agentcore" {
           "bedrock-agentcore:InvokeAgentRuntime"
         ]
         # ベースARNとサブリソース（runtime-endpoint等）の両方を許可
-        Resource = [
-          aws_bedrockagentcore_agent_runtime.summarizer.agent_runtime_arn,
-          "${aws_bedrockagentcore_agent_runtime.summarizer.agent_runtime_arn}/*"
-        ]
+        Resource = "*"
       }
     ]
   })
